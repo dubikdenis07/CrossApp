@@ -23,3 +23,25 @@
 
 ```bash
 dotnet build
+```
+
+## Додаткове завдання 1
+
+Self-contained публікація:
+
+| RID | Розмір publish |
+|---|---:|
+| win-x64 | 70,6561975479126 |
+| linux-x64 | 70,5849885940552 |
+
+## Додаткове завдання 2
+
+Програма підтримує прапорець --json.
+
+Звичайний запуск:
+
+dotnet run --project src/Cli
+
+Запуск у JSON-режимі:
+
+dotnet run --project src/Cli -- --json

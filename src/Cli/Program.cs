@@ -1,16 +1,48 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
+using System.Text.Json;
 
-Console.WriteLine("CrossApp – практикум з крос-платформного програмування");
-Console.WriteLine("Студент: Дубик Денис, FEI-34");
-Console.WriteLine(new string('-', 52));
+Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-Console.WriteLine($"ОС (OSDescription)   : {RuntimeInformation.OSDescription}");
-Console.WriteLine($"ОС (Environment)     : {Environment.OSVersion}");
-Console.WriteLine($"Архітектура процесу  : {RuntimeInformation.ProcessArchitecture}");
-Console.WriteLine($"Версія .NET (CLR)    : {Environment.Version}");
-Console.WriteLine($"Runtime              : {RuntimeInformation.FrameworkDescription}");
-Console.WriteLine($"Каталог застосунку   : {AppContext.BaseDirectory}");
-Console.WriteLine($"Поточний каталог     : {Environment.CurrentDirectory}");
+bool jsonMode = args.Contains("--json");
 
-Console.WriteLine(new string('-', 52));
-Console.WriteLine("Предметна область: Склад (товари, партії, залишки, переміщення)");
+string osDescription = RuntimeInformation.OSDescription;
+string environmentOs = Environment.OSVersion.ToString();
+string architecture = RuntimeInformation.ProcessArchitecture.ToString();
+string dotnetVersion = Environment.Version.ToString();
+string runtime = RuntimeInformation.FrameworkDescription;
+string appDirectory = AppContext.BaseDirectory;
+string currentDirectory = Environment.CurrentDirectory;
+
+if (jsonMode)
+{
+    var information = new
+    {
+        OSDescription = osDescription,
+        EnvironmentOS = environmentOs,
+        Architecture = architecture,
+        DotNetVersion = dotnetVersion,
+        Runtime = runtime,
+        AppDirectory = appDirectory,
+        CurrentDirectory = currentDirectory
+    };
+
+    Console.WriteLine(JsonSerializer.Serialize(information));
+}
+else
+{
+    Console.WriteLine("CrossApp – практикум з крос-платформного програмування");
+    Console.WriteLine("Студент: Дубик Денис, група FEI-34");
+    Console.WriteLine(new string('-', 52));
+
+    Console.WriteLine($"ОС (OSDescription)   : {osDescription}");
+    Console.WriteLine($"ОС (Environment)     : {environmentOs}");
+    Console.WriteLine($"Архітектура процесу  : {architecture}");
+    Console.WriteLine($"Версія .NET (CLR)    : {dotnetVersion}");
+    Console.WriteLine($"Runtime              : {runtime}");
+    Console.WriteLine($"Каталог застосунку   : {appDirectory}");
+    Console.WriteLine($"Поточний каталог     : {currentDirectory}");
+
+    Console.WriteLine(new string('-', 52));
+    Console.WriteLine("Предметна область: Бібліотека (книги, примірники, читачі, видачі)");
+}
