@@ -8,40 +8,92 @@
 
 Основні сутності:
 
-- `Book` — книга;
-- `BookCopy` — конкретний примірник книги;
-- `Reader` — читач;
-- `Loan` — видача примірника книги читачеві.
+* `Book` — книга;
+* `BookCopy` — примірник;
+* `Reader` — читач;
+* `Loan` — видача книги.
 
-## Призначення
+## Структура
 
-Проєкт призначений для обліку видачі та повернення примірників книг читачами.
+```text
+CrossApp/
+├── CrossApp.sln
+├── README.md
+└── src/
+    ├── Core/
+    │   ├── Core.csproj
+    │   └── EnvironmentInfo.cs
+    └── Cli/
+        ├── Cli.csproj
+        └── Program.cs
+```
 
-## Запуск
+`Cli` використовує бібліотеку `Core` через `ProjectReference`.
 
-Для збирання проєкту:
+## Збірка та запуск
 
 ```bash
 dotnet build
+dotnet run --project src/Cli
 ```
 
-## Додаткове завдання 1
+## Multi-targeting
 
-Self-contained публікація:
+`Core` збирається для:
 
-| RID | Розмір publish |
-|---|---:|
-| win-x64 | 70,6561975479126 |
-| linux-x64 | 70,5849885940552 |
+```xml
+<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+```
 
-## Додаткове завдання 2
+Після збірки створюються окремі каталоги `net8.0` та `net9.0`.
 
-Програма підтримує прапорець --json.
+## Публікація
 
-Звичайний запуск:
+### Self-contained
 
-dotnet run --project src/Cli
+```bash
+dotnet publish src/Cli -c Release -r win-x64 --self-contained true
+```
 
-Запуск у JSON-режимі:
+```bash
+dotnet publish src/Cli -c Release -r linux-x64 --self-contained true
+```
 
-dotnet run --project src/Cli -- --json
+### Framework-dependent
+
+```bash
+dotnet publish src/Cli -c Release -r win-x64 --self-contained false
+```
+
+Self-contained містить .NET Runtime, а framework-dependent потребує встановленого Runtime.
+
+## Результати
+
+| RID       | Режим               | Розмір, МБ | Runtime |
+| --------- | ------------------- | ---------: | ------- |
+| win-x64   | self-contained      |    70,6562 | ні      |
+| linux-x64 | self-contained      |    70,5850 | ні      |
+| win-x64   | framework-dependent |          — | так     |
+
+## Додаткові завдання
+
+**PublishSingleFile:**
+
+```powershell
+dotnet publish src/Cli -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish\win-x64-singlefile
+```
+
+**PublishTrimmed:**
+
+```powershell
+dotnet publish src/Cli -c Release -r win-x64 --self-contained true -p:PublishTrimmed=true -o publish\win-x64-trimmed
+```
+
+**Linux-x64:**
+
+```powershell
+dotnet publish src/Cli -c Release -r linux-x64 --self-contained true -o publish\linux-x64
+```
+
+Linux-публікацію можна перевірити у Docker-контейнері `mcr.microsoft.com/dotnet/runtime-deps:8.0`.
+

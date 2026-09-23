@@ -3,39 +3,48 @@ using System.Runtime.InteropServices;
 namespace Core;
 
 public sealed record EnvironmentReport(
-    string OsDescription,
-    string FrameworkDescription,
-    string ProcessArchitecture,
-    string DetectedRid,
-    string ReportedRid,
-    string BaseDirectory);
+string OsDescription,
+string FrameworkDescription,
+string ProcessArchitecture,
+string DetectedRid,
+string ReportedRid,
+string BaseDirectory);
 
 public static class EnvironmentInfo
 {
-    public static EnvironmentReport Collect() => new(
-        RuntimeInformation.OSDescription,
-        RuntimeInformation.FrameworkDescription,
-        RuntimeInformation.ProcessArchitecture.ToString(),
-        DetectRid(),
-        RuntimeInformation.RuntimeIdentifier,
-        AppContext.BaseDirectory);
+#if NET9_0_OR_GREATER
+private const string BuildNote = "збірка під net9.0";
+#else
+private const string BuildNote = "збірка під net8.0";
+#endif
 
-    private static string DetectRid()
+
+public static EnvironmentReport Collect() => new(
+    RuntimeInformation.OSDescription,
+    RuntimeInformation.FrameworkDescription,
+    RuntimeInformation.ProcessArchitecture.ToString(),
+    DetectRid(),
+    RuntimeInformation.RuntimeIdentifier,
+    AppContext.BaseDirectory);
+
+private static string DetectRid()
+{
+    string os =
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "win" :
+        RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "linux" :
+        RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "osx" : "unknown";
+
+    string arch = RuntimeInformation.ProcessArchitecture switch
     {
-        string os =
-            RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "win" :
-            RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "linux" :
-            RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "osx" : "unknown";
+        Architecture.X64 => "x64",
+        Architecture.X86 => "x86",
+        Architecture.Arm64 => "arm64",
+        Architecture.Arm => "arm",
+        _ => "unknown"
+    };
 
-        string arch = RuntimeInformation.ProcessArchitecture switch
-        {
-            Architecture.X64 => "x64",
-            Architecture.X86 => "x86",
-            Architecture.Arm64 => "arm64",
-            Architecture.Arm => "arm",
-            _ => "unknown"
-        };
+    return $"{os}-{arch}";
+}
 
-        return $"{os}-{arch}";
-    }
+
 }
