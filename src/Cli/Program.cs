@@ -1,17 +1,32 @@
-﻿using Core;
+﻿using Core.Dto;
+using Core.Import;
 
-EnvironmentReport report = EnvironmentInfo.Collect();
+string path = args.Length > 0
+    ? args[0]
+    : Path.Combine("data", "sample.csv");
 
-Console.WriteLine("CrossApp – практикум з крос-платформного програмування");
-Console.WriteLine("Студент: Дубик Денис, група FEI-34");
-Console.WriteLine(new string('-', 52));
+if (!File.Exists(path))
+{
+    Console.WriteLine($"Файл не знайдено: {Path.GetFullPath(path)}");
+    return 1;
+}
 
-Console.WriteLine($"ОС                    : {report.OsDescription}");
-Console.WriteLine($"Runtime               : {report.FrameworkDescription}");
-Console.WriteLine($"Архітектура процесу  : {report.ProcessArchitecture}");
-Console.WriteLine($"RID (визначено)       : {report.DetectedRid}");
-Console.WriteLine($"RID (від .NET)        : {report.ReportedRid}");
-Console.WriteLine($"Каталог застосунку    : {report.BaseDirectory}");
+ImportResult<BookDto> result = BookCsvImporter.Load(path);
 
-Console.WriteLine(new string('-', 52));
-Console.WriteLine("Предметна область: Бібліотека (книги, примірники, читачі, видачі)");
+Console.WriteLine($"Завантажено книг: {result.Items.Count}");
+
+foreach (BookDto book in result.Items.Take(5))
+{
+    Console.WriteLine(
+        $"  {book.Id,-6} {book.Isbn,-18} {book.Title,-25} {book.Year}");
+}
+
+if (result.Errors.Count > 0)
+{
+    Console.WriteLine($"Пропущено рядків: {result.Errors.Count}");
+
+    foreach (string error in result.Errors)
+        Console.WriteLine($"  ! {error}");
+}
+
+return 0;
