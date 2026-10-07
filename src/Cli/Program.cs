@@ -1,7 +1,6 @@
 ﻿using Core.Dto;
 using Core.Import;
-
-//MixedImporter.Load("data/mixed.csv");
+using Core.Domain;
 
 string path = args.Length > 0
     ? args[0]
@@ -10,58 +9,172 @@ string path = args.Length > 0
 if (!File.Exists(path))
 {
     Console.WriteLine($"Файл не знайдено: {Path.GetFullPath(path)}");
-    return 1;
 }
-
-string extension = Path.GetExtension(path).ToLowerInvariant();
-
-switch (extension)
+else
 {
-    case ".csv":
+    string extension = Path.GetExtension(path).ToLowerInvariant();
+
+    switch (extension)
     {
-        ImportResult<BookDto> result = BookCsvImporter.Load(path);
-        int total = result.Items.Count + result.Errors.Count;
-int accepted = result.Items.Count;
-int skipped = result.Errors.Count;
-double errorPercent = total == 0 ? 0 : skipped * 100.0 / total;
-
-Console.WriteLine(
-    $"Імпорт: усього {total}, прийнято {accepted}, " +
-    $"пропущено {skipped}, помилки {errorPercent:F1}%");
-
-        Console.WriteLine($"Завантажено книг: {result.Items.Count}");
-
-        foreach (BookDto book in result.Items.Take(5))
-            Console.WriteLine(
-                $"  {book.Id,-6} {book.Isbn,-18} {book.Title,-25} {book.Year}");
-
-        if (result.Errors.Count > 0)
+        case ".csv":
         {
-            Console.WriteLine($"Пропущено рядків: {result.Errors.Count}");
+            ImportResult<BookDto> result = BookCsvImporter.Load(path);
 
-            foreach (string error in result.Errors)
-                Console.WriteLine($"  ! {error}");
+            int total = result.Items.Count + result.Errors.Count;
+            int accepted = result.Items.Count;
+            int skipped = result.Errors.Count;
+            double errorPercent = total == 0
+                ? 0
+                : skipped * 100.0 / total;
+
+            Console.WriteLine(
+                $"Імпорт: усього {total}, прийнято {accepted}, " +
+                $"пропущено {skipped}, помилки {errorPercent:F1}%");
+
+            Console.WriteLine(
+                $"Завантажено книг: {result.Items.Count}");
+
+            foreach (BookDto importedBook in result.Items.Take(5))
+            {
+                Console.WriteLine(
+                    $"  {importedBook.Id,-6} " +
+                    $"{importedBook.Isbn,-18} " +
+                    $"{importedBook.Title,-25} " +
+                    $"{importedBook.Year}");
+            }
+
+            if (result.Errors.Count > 0)
+            {
+                Console.WriteLine(
+                    $"Пропущено рядків: {result.Errors.Count}");
+
+                foreach (string error in result.Errors)
+                    Console.WriteLine($"  ! {error}");
+            }
+
+            break;
         }
 
-        break;
-    }
+        case ".json":
+        {
+            ImportResult<BookDto> result =
+                BookJsonImporter.Load(path);
 
-    case ".json":
-    {
-        ImportResult<BookDto> result = BookJsonImporter.Load(path);
-
-        Console.WriteLine($"Завантажено книг: {result.Items.Count}");
-
-        foreach (BookDto book in result.Items.Take(5))
             Console.WriteLine(
-                $"  {book.Id,-6} {book.Isbn,-18} {book.Title,-25} {book.Year}");
+                $"Завантажено книг: {result.Items.Count}");
 
-        break;
+            foreach (BookDto importedBook in result.Items.Take(5))
+            {
+                Console.WriteLine(
+                    $"  {importedBook.Id,-6} " +
+                    $"{importedBook.Isbn,-18} " +
+                    $"{importedBook.Title,-25} " +
+                    $"{importedBook.Year}");
+            }
+
+            break;
+        }
+
+        default:
+            Console.WriteLine(
+                $"Непідтримуваний формат: {extension}");
+            break;
     }
-
-    default:
-        Console.WriteLine($"Непідтримуваний формат: {extension}");
-        return 1;
 }
 
-return 0;
+Console.WriteLine();
+Console.WriteLine();
+Console.WriteLine("=== Сценарій 1: успішна робота ===");
+
+BookCopy libraryBook = BookCopy.Create(
+    "BC-001",
+    "INV-001",
+    "Кобзар");
+
+Console.WriteLine(
+    $"Створено: {libraryBook.Title}, " +
+    $"інвентарний номер: {libraryBook.InventoryNumber}");
+
+Console.WriteLine(
+    $"Доступна: {libraryBook.IsAvailable}");
+
+libraryBook.IssueCopy();
+
+Console.WriteLine(
+    $"Після видачі: доступна = {libraryBook.IsAvailable}");
+
+libraryBook.ReturnCopy();
+
+Console.WriteLine(
+    $"Після повернення: доступна = {libraryBook.IsAvailable}");
+
+BookCopyDto dto = libraryBook.ToDto();
+
+Console.WriteLine();
+Console.WriteLine("=== ToDto / FromDto ===");
+
+Console.WriteLine(
+    $"DTO: {dto.Id}, {dto.InventoryNumber}, " +
+    $"{dto.Title}, доступна = {dto.IsAvailable}");
+
+BookCopy restoredBook = BookCopy.FromDto(dto);
+
+Console.WriteLine(
+    $"Відновлено: {restoredBook.Title}, " +
+    $"доступна = {restoredBook.IsAvailable}");
+
+Console.WriteLine();
+Console.WriteLine("=== Сценарій 2: порушення інваріантів ===");
+
+TryDo(
+    "повторна видача",
+    () =>
+    {
+        libraryBook.IssueCopy();
+        libraryBook.IssueCopy();
+    });
+
+libraryBook.ReturnCopy();
+
+TryDo(
+    "порожній інвентарний номер",
+    () =>
+    {
+        BookCopy.Create(
+            "BC-002",
+            "",
+            "Чистий аркуш");
+    });
+
+TryDo(
+    "порожня назва книги",
+    () =>
+    {
+        BookCopy.Create(
+            "BC-003",
+            "INV-003",
+            "");
+    });
+
+TryDo(
+    "повторне повернення",
+    () =>
+    {
+        libraryBook.ReturnCopy();
+    });
+
+static void TryDo(string title, Action action)
+{
+    try
+    {
+        action();
+
+        Console.WriteLine(
+            $"{title}: виняток НЕ спрацював!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(
+            $"{title}: {ex.GetType().Name} — {ex.Message}");
+    }
+}
