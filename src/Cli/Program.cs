@@ -1,6 +1,7 @@
 ﻿using Core.Dto;
 using Core.Import;
 using Core.Domain;
+using Core.Services;
 
 string path = args.Length > 0
     ? args[0]
@@ -79,6 +80,44 @@ else
             Console.WriteLine(
                 $"Непідтримуваний формат: {extension}");
             break;
+    }
+}
+
+Console.WriteLine();
+Console.WriteLine("=== Додаткове завдання 1 ===");
+
+if (File.Exists(path))
+{
+    string extension = Path.GetExtension(path).ToLowerInvariant();
+
+    ImportResult<BookDto>? importResult = extension switch
+    {
+        ".csv" => BookCsvImporter.Load(path),
+        ".json" => BookJsonImporter.Load(path),
+        _ => null
+    };
+
+    if (importResult is not null)
+    {
+        BookCopyImportResult converted =
+            BookCopyImportService.Convert(importResult);
+
+        Console.WriteLine(
+            $"Створено сутностей: {converted.Items.Count}");
+
+        Console.WriteLine(
+            $"Помилок: {converted.Errors.Count}");
+
+        foreach (BookCopy copy in converted.Items.Take(5))
+        {
+            Console.WriteLine(
+                $"  {copy.Id} | {copy.InventoryNumber} | {copy.Title}");
+        }
+
+        foreach (string error in converted.Errors)
+        {
+            Console.WriteLine($"  ! {error}");
+        }
     }
 }
 
