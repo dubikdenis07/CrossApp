@@ -6,6 +6,9 @@ using Core.Domain;
 using Core.Services;
 using Core.Abstractions;
 using Core.Storage;
+using Core.Events;
+using System.IO;
+using Cli.Notifications;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -132,15 +135,21 @@ Console.WriteLine("=== Додаткове завдання 1: імпорт у Bo
 
 if (!skipImport && File.Exists(importPath))
 {
-    string extension =
-        Path.GetExtension(importPath).ToLowerInvariant();
+    
+string extension =
+    Path.GetExtension(importPath).ToLowerInvariant();
 
-    ImportResult<BookDto>? importResult = extension switch
-    {
-        ".csv" => BookCsvImporter.Load(importPath),
-        ".json" => BookJsonImporter.Load(importPath),
-        _ => null
-    };
+ImportResult<BookDto>? importResult = extension switch
+{
+    ".csv" => BookCsvImporter.Load(
+        importPath,
+        message => Console.WriteLine($"[Пропущено] {message}")
+    ),
+
+    ".json" => BookJsonImporter.Load(importPath),
+
+    _ => null
+};
 
     if (importResult is not null)
     {
@@ -261,7 +270,39 @@ IBookStore store = StoreFactory.Create(args);
 
 store = new CachingBookStore(store);
 
-LendingService service = new LendingService(store);
+var logPath = Path.Combine(
+    Directory.GetCurrentDirectory(),
+    "logs",
+    "app.log");
+
+INotificationSink[] sinks =
+[
+    new ConsoleSink(),
+    new FileSink(logPath)
+];
+
+LendingService service =
+    new LendingService(store, sinks);
+
+int changes = 0; 
+     service.Changed += (_, _) => changes++; 
+
+void OnBookCopyChanged(object? sender, BookCopyChangedEventArgs e)
+{
+    var line = $"{e.At:HH:mm:ss} {e.Kind} {e.CopyId}";
+
+    Console.WriteLine(line);
+
+    File.AppendAllText(
+        logPath,
+        line + Environment.NewLine
+    );
+}
+
+
+Directory.CreateDirectory(
+    Path.GetDirectoryName(logPath)!
+);
 
 Console.WriteLine($"Вибране сховище: {store.GetType().Name}");
 
@@ -450,4 +491,31 @@ static void TryDo(string title, Action action)
         Console.WriteLine(
             $"{title}: {ex.GetType().Name} — {ex.Message}");
     }
+}
+
+int before = changes;
+
+try
+{
+    service.IssueCopy("NOT-EXISTING-ID");
+}
+catch (Exception ex)
+{
+    Console.WriteLine(
+        $"Помилка: {ex.Message}");
+}
+
+Console.WriteLine(
+    $"Подій до операції: {before}");
+
+Console.WriteLine(
+    $"Подій після операції: {changes}");
+
+
+var availableBooks =
+    service.FindAll(book => book.IsAvailable);
+
+foreach (var book in availableBooks)
+{
+    PrintBook(book);
 }

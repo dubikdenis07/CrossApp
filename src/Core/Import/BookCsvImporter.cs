@@ -1,3 +1,4 @@
+
 using Core.Dto;
 
 namespace Core.Import;
@@ -6,7 +7,9 @@ public static class BookCsvImporter
 {
     private const char Separator = ';';
 
-    public static ImportResult<BookDto> Load(string path)
+    public static ImportResult<BookDto> Load(
+        string path,
+        Action<string>? reportSkipped = null)
     {
         var items = new List<BookDto>();
         var errors = new List<string>();
@@ -31,7 +34,13 @@ public static class BookCsvImporter
                     break;
 
                 case ParseFailed failed:
-                    errors.Add($"рядок {number}: {failed.Reason}");
+                    // ДОДАНО: формуємо повідомлення про помилку
+                    string error = $"рядок {number}: {failed.Reason}";
+
+                    errors.Add(error);
+
+                    // ДОДАНО: повідомляємо про пропущений рядок
+                    reportSkipped?.Invoke(error);
                     break;
             }
         }
