@@ -17,16 +17,51 @@
 
 ```text
 CrossApp/
-├── CrossApp.sln
-├── README.md
-└── src/
-    ├── Core/
-    │   ├── Core.csproj
-    │   └── EnvironmentInfo.cs
-    └── Cli/
-        ├── Cli.csproj
-        └── Program.cs
-```
+│
+├── data/
+│   ├── sample.csv
+│   └── library.json
+│
+├── src/
+│   ├── Core/
+│   │   ├── Abstractions/
+│   │   ├── Domain/
+│   │   ├── Dto/
+│   │   ├── Events/
+│   │   ├── Extensions/
+│   │   ├── Import/
+│   │   ├── Services/
+│   │   ├── Storage/
+│   │   └── SampleData.cs
+│   │
+│   └── Cli/
+│       ├── Notifications/
+│       ├── Program.cs
+│       └── ReportConsole.cs
+│
+└── README.md
+
+Призначення основних каталогів:
+
+Core/Domain — доменні класи та бізнес-логіка.
+
+Core/Dto — об'єкти передачі даних.
+
+Core/Import — імпортери CSV та JSON.
+
+Core/Services — сервісний шар, робота з бібліотекою та LINQ-звіти.
+
+Core/Storage — інтерфейси та реалізації сховищ.
+
+Core/Events — класи подій.
+
+Core/Extensions — методи розширення.
+
+Core/Abstractions — абстракції та контракти.
+
+Cli — консольний інтерфейс, меню та запуск команд.
+
+data — файли з даними.
 
 `Cli` використовує бібліотеку `Core` через `ProjectReference`.
 
@@ -189,3 +224,126 @@ Linux-публікацію можна перевірити у Docker-конте�
 - помилки можуть стати необробленими.
 
 Для звичайних асинхронних методів рекомендується використовувати `async Task`.
+
+
+
+## Лабораторна робота 7 — LINQ
+
+У роботі реалізовано обробку та аналіз даних бібліотечних примірників за допомогою LINQ.
+
+Створено:
+- `BookCopyReportService` — сервіс для формування звітів про книги.
+- `EnumerableExtensions` — клас із власним LINQ-методом `TopBy`.
+- `ReportConsole` — клас для запуску звітів через консольні команди.
+- `LinqBenchmarkService` — сервіс для порівняння продуктивності LINQ-запитів.
+
+Реалізовано фільтрацію, сортування, групування, підрахунок, пошук та об'єднання даних.
+
+## Додаткові завдання
+
+**1. Фільтрація та сортування**
+
+Реалізовано отримання доступних і виданих книг, а також сортування книг за довжиною назви та інвентарного номера.
+
+**2. Групування та підрахунок**
+
+Реалізовано групування книг за доступністю та підрахунок загальної кількості книг, доступних і виданих примірників.
+
+**3. Пошук книг**
+
+Додано пошук книг за частиною назви за допомогою LINQ.
+
+**4. Query Syntax та Method Syntax**
+
+Реалізовано два способи групування книг:
+- `Query Syntax` — запис LINQ-запитів у вигляді SQL-подібного синтаксису.
+- `Method Syntax` — використання методів `GroupBy`, `Select`, `Where` та інших.
+
+**5. Відкладене виконання LINQ**
+
+Продемонстровано відкладене виконання запитів і різницю між запитом та його матеріалізацією за допомогою `ToList()`.
+
+**6. Об'єднання даних JOIN**
+
+Реалізовано об'єднання інформації про бібліотечні примірники та історію операцій за допомогою `join` за ідентифікатором книги.
+
+**7. Власний метод TopBy**
+
+Створено метод розширення `TopBy`, який сортує елементи за заданим критерієм і повертає вказану кількість перших результатів.
+
+**8. Порівняння продуктивності**
+
+За допомогою `Stopwatch` реалізовано вимірювання часу виконання LINQ-запитів із проміжним `ToList()` та без нього.
+
+## Команди запуску
+
+```powershell
+dotnet build
+```
+Збірка проєкту та перевірка на помилки.
+
+```powershell
+dotnet run --project src/Cli -- report-available
+```
+Виведення доступних книг.
+
+```powershell
+dotnet run --project src/Cli -- report-issued
+```
+Виведення виданих книг.
+
+```powershell
+dotnet run --project src/Cli -- report-top-title
+```
+Виведення топ-5 книг за довжиною назви.
+
+```powershell
+dotnet run --project src/Cli -- report-top-inventory
+```
+Виведення топ-5 за довжиною інвентарного номера.
+
+```powershell
+dotnet run --project src/Cli -- report-groups
+```
+Групування книг за доступністю.
+
+```powershell
+dotnet run --project src/Cli -- report-sum
+```
+Підрахунок кількості книг.
+
+```powershell
+dotnet run --project src/Cli -- report-search
+```
+Пошук книг за назвою.
+
+```powershell
+dotnet run --project src/Cli -- report-deferred
+```
+Демонстрація відкладеного виконання LINQ.
+
+```powershell
+dotnet run --project src/Cli -- report-query
+```
+Групування за допомогою Query Syntax.
+
+```powershell
+dotnet run --project src/Cli -- report-method
+```
+Групування за допомогою Method Syntax.
+
+```powershell
+dotnet run --project src/Cli -- report-join
+```
+Об'єднання даних за допомогою JOIN.
+
+```powershell
+dotnet run --project src/Cli -- benchmark
+```
+Порівняння продуктивності LINQ-запитів.
+
+```powershell
+dotnet run --project src/Cli -- --file report-query
+```
+Запуск звіту з використанням файлового JSON-сховища.
+

@@ -1,5 +1,4 @@
-﻿
-using Core;
+﻿using Core;
 using Core.Dto;
 using Core.Import;
 using Core.Domain;
@@ -14,17 +13,23 @@ Console.OutputEncoding = System.Text.Encoding.UTF8;
 
 // ЛАБОРАТОРНА РОБОТА 3: ІМПОРТ CSV / JSON
 
-string importPath = args.FirstOrDefault(
-    arg => !arg.StartsWith("--", StringComparison.Ordinal))
+bool isReportCommand = args.Any(arg =>
+    arg.StartsWith("report-", StringComparison.OrdinalIgnoreCase) ||
+    arg.Equals("benchmark", StringComparison.OrdinalIgnoreCase));
+
+string importPath = args.FirstOrDefault(arg =>
+    !arg.StartsWith("--", StringComparison.Ordinal) &&
+    !arg.StartsWith("report-", StringComparison.OrdinalIgnoreCase) &&
+    !arg.Equals("benchmark", StringComparison.OrdinalIgnoreCase))
     ?? Path.Combine("data", "sample.csv");
 
 bool useFile = args.Contains(
     "--file",
     StringComparer.OrdinalIgnoreCase);
 
-bool skipImport = args.Contains(
-    "--no-import",
-    StringComparer.OrdinalIgnoreCase);
+bool skipImport =
+    args.Contains("--no-import", StringComparer.OrdinalIgnoreCase)
+    || isReportCommand;
 
 if (!skipImport)
 {
@@ -125,31 +130,30 @@ if (!skipImport)
 }
 else
 {
-    Console.WriteLine("Імпорт пропущено через аргумент --no-import.");
+    Console.WriteLine("Імпорт пропущено.");
 }
 
-// ЛАБОРАТОРНА РОБОТА 4: ДОДАТКОВЕ
+// ЛАБОРАТОРНА РОБОТА 4: ДОДАТКОВЕ ЗАВДАННЯ
 
 Console.WriteLine();
 Console.WriteLine("=== Додаткове завдання 1: імпорт у BookCopy ===");
 
 if (!skipImport && File.Exists(importPath))
 {
-    
-string extension =
-    Path.GetExtension(importPath).ToLowerInvariant();
+    string extension =
+        Path.GetExtension(importPath).ToLowerInvariant();
 
-ImportResult<BookDto>? importResult = extension switch
-{
-    ".csv" => BookCsvImporter.Load(
-        importPath,
-        message => Console.WriteLine($"[Пропущено] {message}")
-    ),
+    ImportResult<BookDto>? importResult = extension switch
+    {
+        ".csv" => BookCsvImporter.Load(
+            importPath,
+            message => Console.WriteLine($"[Пропущено] {message}")
+        ),
 
-    ".json" => BookJsonImporter.Load(importPath),
+        ".json" => BookJsonImporter.Load(importPath),
 
-    _ => null
-};
+        _ => null
+    };
 
     if (importResult is not null)
     {
@@ -275,6 +279,9 @@ var logPath = Path.Combine(
     "logs",
     "app.log");
 
+Directory.CreateDirectory(
+    Path.GetDirectoryName(logPath)!);
+
 INotificationSink[] sinks =
 [
     new ConsoleSink(),
@@ -284,10 +291,11 @@ INotificationSink[] sinks =
 LendingService service =
     new LendingService(store, sinks);
 
-int changes = 0; 
-     service.Changed += (_, _) => changes++; 
+int changes = 0;
 
-void OnBookCopyChanged(object? sender, BookCopyChangedEventArgs e)
+void OnBookCopyChanged(
+    object? sender,
+    BookCopyChangedEventArgs e)
 {
     var line = $"{e.At:HH:mm:ss} {e.Kind} {e.CopyId}";
 
@@ -295,26 +303,25 @@ void OnBookCopyChanged(object? sender, BookCopyChangedEventArgs e)
 
     File.AppendAllText(
         logPath,
-        line + Environment.NewLine
-    );
+        line + Environment.NewLine);
 }
 
+// Підписуємося на події.
+service.Changed += (_, _) => changes++;
+service.Changed += OnBookCopyChanged;
 
-Directory.CreateDirectory(
-    Path.GetDirectoryName(logPath)!
-);
-
-Console.WriteLine($"Вибране сховище: {store.GetType().Name}");
+Console.WriteLine(
+    $"Вибране сховище: {store.GetType().Name}");
 
 if (useFile)
 {
     Console.WriteLine($"Файл даних: {dataPath}");
 }
-Console.WriteLine($"Вибране сховище: {store.GetType().Name}");
 
-if (useFile)
+// ЛАБОРАТОРНА РОБОТА 7: ЗАПУСК LINQ-ЗВІТІВ
+if (ReportConsole.Run(service, args))
 {
-    Console.WriteLine($"Файл даних: {dataPath}");
+    return;
 }
 
 bool running = true;
@@ -468,6 +475,47 @@ while (running)
     }
 }
 
+int before = changes;
+
+try
+{
+    service.IssueCopy("NOT-EXISTING-ID");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Помилка: {ex.Message}");
+}
+
+Console.WriteLine($"Подій до операції: {before}");
+Console.WriteLine($"Подій після операції: {changes}");
+
+Console.WriteLine();
+Console.WriteLine("=== Пошук книг за допомогою Func ===");
+
+var foundBooks = service.FindAll(book =>
+    book.Title.Contains(
+        "Місто",
+        StringComparison.OrdinalIgnoreCase)
+    && book.IsAvailable
+).ToList();
+
+if (foundBooks.Count == 0)
+{
+    Console.WriteLine("Книг не знайдено.");
+}
+else
+{
+    foreach (var book in foundBooks)
+    {
+        Console.WriteLine(
+            $"ID: {book.Id} | Інв. номер: {book.InventoryNumber} | " +
+            $"Назва: {book.Title} | Статус: " +
+            $"{(book.IsAvailable ? "У бібліотеці" : "Видана")}");
+    }
+}
+
+// ЛОКАЛЬНІ МЕТОДИ
+
 static void PrintBook(BookCopy item)
 {
     Console.WriteLine(
@@ -491,31 +539,4 @@ static void TryDo(string title, Action action)
         Console.WriteLine(
             $"{title}: {ex.GetType().Name} — {ex.Message}");
     }
-}
-
-int before = changes;
-
-try
-{
-    service.IssueCopy("NOT-EXISTING-ID");
-}
-catch (Exception ex)
-{
-    Console.WriteLine(
-        $"Помилка: {ex.Message}");
-}
-
-Console.WriteLine(
-    $"Подій до операції: {before}");
-
-Console.WriteLine(
-    $"Подій після операції: {changes}");
-
-
-var availableBooks =
-    service.FindAll(book => book.IsAvailable);
-
-foreach (var book in availableBooks)
-{
-    PrintBook(book);
 }

@@ -10,9 +10,7 @@ public sealed class LendingService
 {
     private readonly IBookStore _store;
 
-    // Подія про зміну книжкових примірників
     public event EventHandler<BookCopyChangedEventArgs>? Changed;
-    private readonly IBookStore _store;
     private readonly IReadOnlyList<INotificationSink> _sinks;
 
         public LendingService(
@@ -113,11 +111,10 @@ public sealed class LendingService
         return removed;
     }
 
-        public IReadOnlyList<BookCopy> FindAll(
-        Func<BookCopy, bool> predicate)
+            public IEnumerable<BookCopy> FindAll(Func<BookCopy, bool> predicate)
     {
-        return All()
-            .Where(predicate)
-            .ToList();
+        ArgumentNullException.ThrowIfNull(predicate);
+
+        return _store.List().Where(predicate);
     }
 }
