@@ -1,4 +1,6 @@
+
 using Core.Dto;
+using Core;
 
 namespace Core.Domain;
 
@@ -53,8 +55,9 @@ public sealed class BookCopy
     public void IssueCopy()
     {
         if (!_isAvailable)
-            throw new InvalidOperationException(
-                $"Примірник {InventoryNumber} вже виданий");
+        {
+            throw new DomainException("Примірник уже виданий.");
+        }
 
         _isAvailable = false;
     }
@@ -62,8 +65,9 @@ public sealed class BookCopy
     public void ReturnCopy()
     {
         if (_isAvailable)
-            throw new InvalidOperationException(
-                $"Примірник {InventoryNumber} вже знаходиться в бібліотеці");
+        {
+            throw new DomainException("Примірник уже повернутий.");
+        }
 
         _isAvailable = true;
     }

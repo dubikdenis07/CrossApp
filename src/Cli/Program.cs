@@ -11,6 +11,14 @@ using Cli.Notifications;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 
+    using var cts = new CancellationTokenSource();
+
+    Console.CancelKeyPress += (_, e) =>
+    {
+        e.Cancel = true;
+        cts.Cancel();
+    };
+
 // ЛАБОРАТОРНА РОБОТА 3: ІМПОРТ CSV / JSON
 
 bool isReportCommand = args.Any(arg =>
@@ -31,8 +39,65 @@ bool skipImport =
     args.Contains("--no-import", StringComparer.OrdinalIgnoreCase)
     || isReportCommand;
 
+bool asyncImport = args.Contains(
+    "--async-import",
+    StringComparer.OrdinalIgnoreCase);    
+
 if (!skipImport)
 {
+    if (asyncImport)
+    {
+        Console.WriteLine("=== Асинхронний імпорт BookCopy ===");
+
+        try
+        {
+            IBookStore asyncStore =
+                new InMemoryBookStore();
+
+            LendingService asyncService =
+                new LendingService(asyncStore);
+
+            IBookCopyImporter importer =
+                new JsonBookCopyImporter();
+
+           
+            var progress = new Progress<int>(percentage =>
+            {
+                Console.Write($"\rПрогрес імпорту: {percentage}%   ");
+            });
+
+            int added = await asyncService.ImportAsync(
+                importer,
+                importPath,
+                cts.Token,
+                progress);
+
+            Console.WriteLine();
+
+
+            Console.WriteLine(
+                $"Асинхронний імпорт завершено. Додано примірників: {added}");
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Імпорт скасовано користувачем.");
+        }
+        catch (DomainException ex)
+        {
+            Console.WriteLine($"Помилка даних: {ex.Message}");
+        }
+        catch (FileNotFoundException ex)
+        {
+            Console.WriteLine($"Файл не знайдено: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка імпорту: {ex.Message}");
+        }
+
+        return;
+    }
+
     Console.WriteLine("=== Імпорт CSV / JSON ===");
 
     if (!File.Exists(importPath))

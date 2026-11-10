@@ -1,0 +1,20 @@
+[
+    {
+        "id": "ASYNC-001",
+        "inventoryNumber": "INV-ASYNC-001",
+        "title": "Воно",
+        "isAvailable": true
+    },
+    {
+        "id": "ASYNC-002",
+        "inventoryNumber": "INV-ASYNC-002",
+        "title": "Керрі",
+        "isAvailable": true
+    },
+    {
+        "id": "ASYNC-003",
+        "inventoryNumber": "INV-ASYNC-003",
+        "title": "Доктор сон",
+        "isAvailable": false
+    }
+]
