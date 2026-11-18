@@ -13,8 +13,11 @@ public sealed class FileBookStore : IBookStore
     private readonly Dictionary<string, BookCopy> _items =
         new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly JsonSerializerOptions _jsonOptions =
-        new() { WriteIndented = true };
+    private readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     private bool _loaded;
 
@@ -47,6 +50,12 @@ public sealed class FileBookStore : IBookStore
 
             foreach (BookCopyDto dto in dtos)
             {
+                if (dto is null)
+                {
+                    throw new InvalidDataException(
+                        "Файл містить порожній запис.");
+                }
+
                 BookCopy item = BookCopy.FromDto(dto);
 
                 if (!_items.TryAdd(item.Id, item))
@@ -75,12 +84,30 @@ public sealed class FileBookStore : IBookStore
 
         string json = JsonSerializer.Serialize(dtos, _jsonOptions);
 
-        File.WriteAllText(_path, json);
+        string temporaryPath = _path + ".tmp";
+
+        try
+        {
+            File.WriteAllText(temporaryPath, json);
+
+            File.Move(
+                temporaryPath,
+                _path,
+                overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
     }
 
     public IReadOnlyList<BookCopy> List()
     {
         EnsureLoaded();
+
         return _items.Values.ToList();
     }
 
@@ -89,12 +116,14 @@ public sealed class FileBookStore : IBookStore
         EnsureLoaded();
 
         _items.TryGetValue(id, out BookCopy? item);
+
         return item;
     }
 
     public void Add(BookCopy item)
     {
         EnsureLoaded();
+
         ArgumentNullException.ThrowIfNull(item);
 
         if (!_items.TryAdd(item.Id, item))
@@ -109,6 +138,7 @@ public sealed class FileBookStore : IBookStore
     public void Update(BookCopy item)
     {
         EnsureLoaded();
+
         ArgumentNullException.ThrowIfNull(item);
 
         if (!_items.ContainsKey(item.Id))
@@ -118,6 +148,7 @@ public sealed class FileBookStore : IBookStore
         }
 
         _items[item.Id] = item;
+
         Flush();
     }
 
@@ -128,7 +159,9 @@ public sealed class FileBookStore : IBookStore
         bool removed = _items.Remove(id);
 
         if (removed)
+        {
             Flush();
+        }
 
         return removed;
     }

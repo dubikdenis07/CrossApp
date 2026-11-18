@@ -8,6 +8,10 @@ using Core.Storage;
 using Core.Events;
 using System.IO;
 using Cli.Notifications;
+using System.Reflection;
+using Core.Configuration;
+using Microsoft.Extensions.Configuration;
+using Core.Export;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -18,6 +22,55 @@ Console.OutputEncoding = System.Text.Encoding.UTF8;
         e.Cancel = true;
         cts.Cancel();
     };
+
+var envName =
+    Environment.GetEnvironmentVariable("CROSSAPP_ENVIRONMENT")
+    ?? "Development";
+
+var config = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+    .AddJsonFile($"appsettings.{envName}.json", optional: true)
+    .AddUserSecrets(Assembly.GetExecutingAssembly(), optional: true)
+    .AddEnvironmentVariables(prefix: "CROSSAPP_")
+    .AddCommandLine(args, new Dictionary<string, string>
+    {
+        ["--data-path"] = "Storage:DataPath"
+    })
+    .Build();
+
+var options = config.Get<AppOptions>() ?? new AppOptions();
+
+if (!options.TryValidate(out string validationError))
+{
+    Console.WriteLine($"Помилка конфігурації: {validationError}");
+    return 2;
+}
+
+var legacyPath = Environment.GetEnvironmentVariable("CROSSAPP_DATA_PATH");
+var hierarchicalEnvironmentPath =
+    Environment.GetEnvironmentVariable("CROSSAPP_Storage__DataPath");
+bool hasCommandLineDataPath = args.Any(arg =>
+    arg.StartsWith("--data-path=", StringComparison.OrdinalIgnoreCase));
+
+var storage = new StorageOptions
+{
+    DataPath = hasCommandLineDataPath
+        ? options.Storage.DataPath
+        : !string.IsNullOrWhiteSpace(hierarchicalEnvironmentPath)
+            ? hierarchicalEnvironmentPath
+            : !string.IsNullOrWhiteSpace(legacyPath)
+                ? legacyPath
+                : options.Storage.DataPath,
+    FileName = options.Storage.FileName,
+    Format = options.Storage.Format
+};
+
+
+string dataFilePath = storage.ResolveFullPath(AppContext.BaseDirectory);
+
+Console.WriteLine($"Файл даних: {dataFilePath}");
+Console.WriteLine($"Середовище: {envName}");
 
 // ЛАБОРАТОРНА РОБОТА 3: ІМПОРТ CSV / JSON
 
@@ -95,7 +148,7 @@ if (!skipImport)
             Console.WriteLine($"Помилка імпорту: {ex.Message}");
         }
 
-        return;
+        return 0;
     }
 
     Console.WriteLine("=== Імпорт CSV / JSON ===");
@@ -330,10 +383,7 @@ TryDo(
 Console.WriteLine();
 Console.WriteLine("=== Лабораторна робота 5: сховища ===");
 
-string dataPath = Path.Combine(
-    Directory.GetCurrentDirectory(),
-    "data",
-    "library.json");
+string dataPath = dataFilePath;
 
 IBookStore store = StoreFactory.Create(args);
 
@@ -355,6 +405,34 @@ INotificationSink[] sinks =
 
 LendingService service =
     new LendingService(store, sinks);
+
+// Експорт бібліотеки у вибраному форматі
+if (args.Contains("--export=true", StringComparer.OrdinalIgnoreCase))
+{
+    string format = options.Storage.Format.ToLowerInvariant();
+
+    IBookCopyExporter exporter = format switch
+    {
+        "json" => new JsonBookCopyExporter(),
+        "csv" => new CsvBookCopyExporter(),
+        _ => throw new InvalidOperationException(
+            "Невідомий формат експорту. Дозволено json або csv.")
+    };
+
+    string exportDirectory = Path.GetDirectoryName(dataFilePath)!;
+
+    string exportPath = Path.Combine(
+        exportDirectory,
+        $"library-export.{format}");
+
+    exporter.Export(
+        service.FindAll(_ => true),
+        exportPath);
+
+    Console.WriteLine($"Експорт завершено: {exportPath}");
+
+    return 0;
+}
 
 int changes = 0;
 
@@ -386,7 +464,7 @@ if (useFile)
 // ЛАБОРАТОРНА РОБОТА 7: ЗАПУСК LINQ-ЗВІТІВ
 if (ReportConsole.Run(service, args))
 {
-    return;
+    return 0;
 }
 
 bool running = true;
@@ -604,4 +682,15 @@ static void TryDo(string title, Action action)
         Console.WriteLine(
             $"{title}: {ex.GetType().Name} — {ex.Message}");
     }
+
 }
+
+var apiKey = config["Integration:ApiKey"];
+
+Console.WriteLine(
+    apiKey is null
+        ? "ApiKey: не заданий"
+        : $"ApiKey: присутній, довжина {apiKey.Length}"
+);
+
+return 0;
